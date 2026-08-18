@@ -1,0 +1,7 @@
+/patchlight
+*.db
+license.key
+patchlight-license.key
+issuer.key
+dist/
+node_modules/
