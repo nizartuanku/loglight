@@ -63,7 +63,7 @@ This repository is the **free edition**: **1 source**, all five detections,
 webhook notifications, 3-day retention, self-hosted, no telemetry. It runs the
 same detection engine as the paid edition.
 
-The paid edition ([Loglight on Whop](https://whop.com/loglight)) lifts the caps
+The paid edition ([Loglight on Whop](https://whop.com/nizar-tuanku/loglight?utm_source=github)) lifts the caps
 and adds the correlation layer and team features:
 
 | | Free | Pro | Team |
