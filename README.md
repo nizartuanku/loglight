@@ -90,6 +90,41 @@ go test ./...
 
 Requires Go 1.24+. CGO is on for the SQLite driver.
 
+## Working with the other Sentinel tools
+
+Loglight is the collector end of the line. Every other Sentinel tool can emit
+its findings as syslog, so point them here:
+
+```bash
+decoy      -syslog loglight.internal:5514        # udp by default
+certwatch  -syslog loglight.internal:5514 -syslog-network tcp
+```
+
+then add a matching source in Loglight:
+
+```bash
+curl -X POST localhost:8427/api/loglight/source \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"sentinel-bus","type":"syslog","params":{"udp":"0.0.0.0:5514"}}'
+```
+
+Their findings then sit next to Loglight's own detections, and high or critical
+ones carrying a source address join that actor's timeline. A Decoy trip from an
+address Loglight already saw port-scanning is raised as one critical incident
+with the whole chain attached, rather than two alerts you have to join up
+yourself.
+
+A finding on its own stays quiet: the tool that raised it already alerted, and
+repeating it here would be the duplicate-alert problem this exists to remove.
+Findings with no attacker — an expiring certificate, a shadowed firewall rule —
+are ignored for correlation and belong on their own product's dashboard.
+
+Loglight can emit its own incidents the same way, so it can forward to a
+collector upstream. There is nothing Sentinel-specific about the format: any
+syslog receiver reads it.
+
+Available on every tier, free included.
+
 ## Honest limits
 
 Loglight is a **detection** tool, not a forensics platform or a searchable log
