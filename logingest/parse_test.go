@@ -108,12 +108,46 @@ func TestUnframedLineStillExtracts(t *testing.T) {
 }
 
 func TestParseLineGeneric(t *testing.T) {
-	e := ParseLine(SourceDocker, "app-container", "host1", "web", `10.0.0.9 - - "POST /login" 401 accepted password? no`)
+	e := ParseLine(SourceDocker, "app-container", "host1", "web", `10.0.0.9 - - "POST /login" 401 accepted password? no`, now)
 	if e.Source != SourceDocker || e.SourceID != "app-container" {
 		t.Errorf("source labelling wrong: %+v", e)
 	}
 	if e.SrcIP != "10.0.0.9" {
 		t.Errorf("want srcIP 10.0.0.9, got %q", e.SrcIP)
+	}
+}
+
+// A zero Timestamp is not a cosmetic defect: every detector window, the firing
+// cooldown, and the correlator's kill-chain gate are arithmetic on this field.
+// Zero times make windows infinite and stop the three-stage incident escalating.
+func TestParseLineAlwaysSetsTimestamp(t *testing.T) {
+	lines := []string{
+		`10.0.0.9 - - "POST /login" 401`,                          // no header at all
+		`Failed password for root from 203.0.113.99 port 22 ssh2`, // bare message
+		`Aug 17 11:30:00 web01 sshd[42]: Failed password for root from ` + // BSD header
+			`203.0.113.99 port 22 ssh2`,
+	}
+	for _, l := range lines {
+		e := ParseLine(SourceFile, "auth-file", "web01", "sshd", l, now)
+		if e.Timestamp.IsZero() {
+			t.Fatalf("timestamp must never be zero, line %q", l)
+		}
+	}
+}
+
+// A tailed auth.log still carries a BSD-syslog header; the event should take its
+// time from the line, not from the moment we happened to read it.
+func TestParseLineUsesHeaderTimestamp(t *testing.T) {
+	e := ParseLine(SourceFile, "auth-file", "web01", "sshd",
+		`Aug 17 11:30:00 web01 sshd[42]: Failed password for root from 203.0.113.99 port 22 ssh2`, now)
+	if got := e.Timestamp; got.Month() != time.August || got.Day() != 17 || got.Hour() != 11 || got.Minute() != 30 {
+		t.Errorf("want the header time (Aug 17 11:30), got %v", got)
+	}
+	if e.Auth != AuthFailure || e.SrcIP != "203.0.113.99" {
+		t.Errorf("field extraction lost: auth=%q ip=%q", e.Auth, e.SrcIP)
+	}
+	if e.SourceID != "auth-file" || e.Source != SourceFile {
+		t.Errorf("header parse must not overwrite source labelling: %+v", e)
 	}
 }
 

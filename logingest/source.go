@@ -115,7 +115,7 @@ func (f *FileSource) Run(ctx context.Context, emit func(Event)) error {
 			if len(line) > 0 {
 				offset += int64(len(line))
 				if line[len(line)-1] == '\n' {
-					emit(ParseLine(f.Type(), f.SourceID, f.Host, f.App, line))
+					emit(ParseLine(f.Type(), f.SourceID, f.Host, f.App, line, f.now()))
 				} else {
 					// partial line; rewind so we re-read it whole next tick
 					offset -= int64(len(line))

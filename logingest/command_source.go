@@ -19,10 +19,21 @@ type CommandSource struct {
 	App      string
 	Name     string   // executable
 	Args     []string // arguments
+
+	// Now is the clock used as the fallback timestamp for lines that carry no
+	// parseable header. Tests override it; production leaves it nil.
+	Now func() time.Time
 }
 
 func (c *CommandSource) ID() string       { return c.SourceID }
 func (c *CommandSource) Type() SourceType { return c.Kind }
+
+func (c *CommandSource) now() time.Time {
+	if c.Now != nil {
+		return c.Now()
+	}
+	return time.Now()
+}
 
 func (c *CommandSource) Run(ctx context.Context, emit func(Event)) error {
 	cmd := exec.CommandContext(ctx, c.Name, c.Args...)
@@ -40,7 +51,7 @@ func (c *CommandSource) Run(ctx context.Context, emit func(Event)) error {
 		if ctx.Err() != nil {
 			break
 		}
-		emit(ParseLine(c.Kind, c.SourceID, c.Host, c.App, sc.Text()))
+		emit(ParseLine(c.Kind, c.SourceID, c.Host, c.App, sc.Text(), c.now()))
 	}
 	return cmd.Wait()
 }

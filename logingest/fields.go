@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // extractFields fills the structured fields detectors key on, from the message
@@ -160,11 +161,35 @@ func containsEventID(msg, id string) bool {
 // ParseLine is the generic entry for non-syslog sources (file/journald/docker):
 // there is no <PRI> framing, so treat the whole line as the message and run the
 // same field extraction. srcType/srcID label the origin.
-func ParseLine(srcType SourceType, srcID, host, app, line string) Event {
+//
+// now is the fallback timestamp. Most files a self-hoster tails (auth.log,
+// kern.log, anything journald writes) still carry a BSD-syslog header, so we
+// try that first and fall back to now — but the Event must ALWAYS carry a
+// non-zero time. Every detector window, the firing cooldown, and the
+// correlator's kill-chain gate are arithmetic on this field: a zero time makes
+// windows infinite, freezes cooldowns, and silently prevents the three-stage
+// incident from ever escalating.
+func ParseLine(srcType SourceType, srcID, host, app, line string, now time.Time) Event {
+	trimmed := strings.TrimRight(line, "\r\n")
 	e := Event{
 		Source: srcType, SourceID: srcID, Host: host, App: app,
-		Severity: -1, Message: strings.TrimRight(line, "\r\n"),
-		Raw: line, Parsed: true,
+		Severity: -1, Message: trimmed,
+		Raw: line, Parsed: true, Timestamp: now,
+	}
+	// Recover the timestamp (and host/app) from a BSD-syslog header if the line
+	// has one. parse3164 leaves e untouched and reports false when it does not.
+	if ev, ok := parse3164(trimmed, e); ok {
+		host, app := e.Host, e.App // an explicitly configured source wins
+		e = ev
+		e.Source, e.SourceID = srcType, srcID
+		if host != "" {
+			e.Host = host
+		}
+		if app != "" {
+			e.App = app
+		}
+		e.Message = strings.TrimSpace(e.Message)
+		e.Parsed = true
 	}
 	extractFields(&e)
 	return e

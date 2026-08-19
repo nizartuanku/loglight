@@ -1,10 +1,12 @@
 package correlate
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/nizartuanku/loglight/detect"
+	"github.com/nizartuanku/loglight/logingest"
 )
 
 var t0 = time.Date(2026, 8, 17, 12, 0, 0, 0, time.UTC)
@@ -84,5 +86,62 @@ func TestScanTooEarlyStillHighNotCritical(t *testing.T) {
 	inc := c.ObserveSuccess("203.0.113.9", "web01", "deploy", t0.Add(21*time.Minute), "Accepted")
 	if inc == nil || inc.Severity != "high" {
 		t.Fatalf("stale scan should not make it critical, got %+v", inc)
+	}
+}
+
+// Regression: the whole chain, driven from raw log lines through ParseLine the
+// way a tailed file actually feeds it — not from hand-built Detections with
+// hand-set timestamps.
+//
+// This is the shape the original bug hid in: ParseLine left Event.Timestamp at
+// the zero value, so Detection.LastAt was zero, so the correlator's
+// `!scanAt.IsZero()` gate never opened and the incident silently degraded from
+// CRITICAL "scan → brute force → successful login" to a HIGH two-stage one. The
+// unit tests above all passed throughout, because they never went through
+// ParseLine.
+func TestFullKillChainFromRawFileLines(t *testing.T) {
+	const ip = "198.51.100.66"
+	eng := detect.NewEngine(detect.Config{})
+	c := New(10*time.Minute, 15*time.Minute)
+
+	feed := func(line string, at time.Time) *Incident {
+		e := logingest.ParseLine(logingest.SourceFile, "auth-file", "web01", "sshd", line, at)
+		if e.Timestamp.IsZero() {
+			t.Fatalf("ParseLine produced a zero timestamp for %q", line)
+		}
+		for _, d := range eng.Observe(e) {
+			c.ObserveDetection(d)
+		}
+		if e.Auth == logingest.AuthSuccess {
+			return c.ObserveSuccess(e.Actor(), e.Host, e.User, e.Timestamp, e.Raw)
+		}
+		return nil
+	}
+
+	// Stage 1 — port scan: 10 distinct ports inside the scan window.
+	for i, port := range []int{21, 22, 23, 25, 80, 110, 143, 443, 445, 3306} {
+		feed(fmt.Sprintf("web01 kernel: [UFW BLOCK] SRC=%s DST=10.20.4.11 SPT=51%03d DPT=%d", ip, i, port),
+			t0.Add(time.Duration(i)*time.Second))
+	}
+	// Stage 2 — brute force: 8 failures inside the brute window.
+	for i, user := range []string{"admin", "root", "deploy", "oracle", "postgres", "jenkins", "git", "backup"} {
+		feed(fmt.Sprintf("web01 sshd[%d]: Failed password for invalid user %s from %s port %d ssh2",
+			2200+i, user, ip, 40000+i), t0.Add(time.Minute).Add(time.Duration(i)*time.Second))
+	}
+	// Stage 3 — the login that finally works.
+	inc := feed(fmt.Sprintf("web01 sshd[2290]: Accepted password for deploy from %s port 40099 ssh2", ip),
+		t0.Add(2*time.Minute))
+
+	if inc == nil {
+		t.Fatal("scan → brute force → success should produce an incident")
+	}
+	if inc.Severity != "critical" {
+		t.Errorf("full three-stage chain must be critical, got %q (stages %v)", inc.Severity, inc.Stages)
+	}
+	if len(inc.Stages) != 3 || inc.Stages[0] != "scan" {
+		t.Errorf("want scan→brute_force→success, got %v", inc.Stages)
+	}
+	if inc.FirstAt.IsZero() || inc.LastAt.IsZero() {
+		t.Errorf("incident carries zero times: first=%v last=%v", inc.FirstAt, inc.LastAt)
 	}
 }
