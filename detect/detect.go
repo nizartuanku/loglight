@@ -21,6 +21,8 @@ const (
 	KindExfil      Kind = "exfil"
 	KindNewAdmin   Kind = "new_admin"
 	KindAuthSpike  Kind = "auth_spike"
+	// KindSentinel is a finding another Sentinel product sent us over syslog.
+	KindSentinel Kind = "sentinel_finding"
 )
 
 // Severity mirrors core severities as plain strings (loglight maps to core).
@@ -114,6 +116,7 @@ type Engine struct {
 	exfil     *exfil
 	newAdmin  *newAdmin
 	authSpike *authSpike
+	sentinel  *sentinelFinding
 }
 
 // NewEngine builds the detector engine with the given (defaulted) config.
@@ -126,14 +129,17 @@ func NewEngine(cfg Config) *Engine {
 		exfil:     newExfil(c),
 		newAdmin:  newNewAdmin(c),
 		authSpike: newAuthSpike(c),
+		sentinel:  newSentinelFinding(c),
 	}
 }
 
 // Observe feeds one event to every detector and returns fired detections.
 func (e *Engine) Observe(ev logingest.Event) []Detection {
 	var out []Detection
-	for _, d := range []interface{ observe(logingest.Event) *Detection }{
-		e.brute, e.scan, e.exfil, e.newAdmin, e.authSpike,
+	for _, d := range []interface {
+		observe(logingest.Event) *Detection
+	}{
+		e.brute, e.scan, e.exfil, e.newAdmin, e.authSpike, e.sentinel,
 	} {
 		if det := d.observe(ev); det != nil {
 			out = append(out, *det)

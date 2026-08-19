@@ -19,8 +19,8 @@ import (
 type Pipeline struct {
 	Detect *detect.Engine
 	Corr   *correlate.Correlator
-	Log    Store        // loglight source/detection store
-	Store  store.Store  // core findings store (Upsert)
+	Log    Store       // loglight source/detection store
+	Store  store.Store // core findings store (Upsert)
 	Disp   *notify.Dispatcher
 	Now    func() time.Time
 	NewID  func(t time.Time) (string, error)
@@ -32,6 +32,10 @@ func (p *Pipeline) Handle(e logingest.Event) {
 	for _, d := range p.Detect.Observe(e) {
 		p.Corr.ObserveDetection(d)
 		p.recordDetection(e.SourceID, d)
+		// A finding from a sibling product can close a chain by itself.
+		if inc := p.Corr.ObserveSentinelFinding(d); inc != nil {
+			p.recordIncident(e.SourceID, *inc)
+		}
 	}
 	// 2. Feed successful logins to the correlator; emit any completed kill-chain.
 	if e.Auth == logingest.AuthSuccess {
@@ -60,8 +64,8 @@ func (p *Pipeline) recordIncident(sourceID string, inc correlate.Incident) {
 		Key: inc.Key, SourceID: sourceID, Check: "incident.killchain",
 		Severity: inc.Severity, Actor: inc.Actor, Target: inc.Target,
 		Title: inc.Title, Detail: inc.Detail, Evidence: ev,
-		Fix:     "Treat as a possible compromise: isolate the host, rotate the affected credential, and review the session.",
-		Count:   len(inc.Members), FirstAt: inc.FirstAt, LastAt: inc.LastAt,
+		Fix:   "Treat as a possible compromise: isolate the host, rotate the affected credential, and review the session.",
+		Count: len(inc.Members), FirstAt: inc.FirstAt, LastAt: inc.LastAt,
 	}
 	p.persistAndEmit(rec)
 }

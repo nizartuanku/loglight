@@ -9,6 +9,7 @@ package correlate
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/nizartuanku/loglight/detect"
@@ -95,6 +96,85 @@ func (c *Correlator) ObserveDetection(d detect.Detection) {
 		if d.Target != "" {
 			s.target = d.Target
 		}
+	}
+}
+
+// ObserveSentinelFinding takes a high or critical finding that another Sentinel
+// product sent over syslog and, if this actor was already doing something on
+// this instance, closes the chain into one incident.
+//
+// It completes a chain on its own where a scan would not, and the asymmetry is
+// deliberate. Scans and failed logins are constant background noise on any
+// internet-facing host; bait is not. Nobody has a legitimate reason to open a
+// decoy, so recon followed by a trip from the same address is the strongest
+// pairing this correlator can see — stronger than a successful login, which at
+// least has innocent explanations.
+//
+// With nothing else on record for the actor the finding is left alone: the
+// product that raised it already alerted, and repeating it here would be the
+// duplicate-alert problem this package exists to remove.
+func (c *Correlator) ObserveSentinelFinding(d detect.Detection) *Incident {
+	if d.Kind != detect.KindSentinel || d.Actor == "" {
+		return nil
+	}
+	at := d.LastAt
+	s := c.states[d.Actor]
+	if s == nil {
+		return nil
+	}
+	if last, ok := c.fired[d.Actor]; ok && at.Sub(last) < c.cool {
+		return nil
+	}
+
+	hasScan := !s.scanAt.IsZero() && at.Sub(s.scanAt) <= c.window && !s.scanAt.After(at)
+	hasBrute := s.brute != nil && at.Sub(s.bruteAt) <= c.window && !s.bruteAt.After(at)
+	if !hasScan && !hasBrute {
+		return nil
+	}
+
+	target := d.Target
+	if target == "" {
+		target = s.target
+	}
+	inc := &Incident{
+		Severity: "critical", Actor: d.Actor, Target: target,
+		LastAt: at, Key: "killchain|" + d.Actor,
+	}
+	if hasScan {
+		inc.FirstAt = s.scanAt
+		inc.Stages = append(inc.Stages, "scan")
+		inc.Members = append(inc.Members, Member{At: s.scanAt, Stage: "scan", Note: s.scanNote})
+	}
+	if hasBrute {
+		if inc.FirstAt.IsZero() || s.bruteAt.Before(inc.FirstAt) {
+			inc.FirstAt = s.bruteAt
+		}
+		inc.Stages = append(inc.Stages, "brute_force")
+		inc.Members = append(inc.Members, Member{At: s.bruteAt, Stage: "brute_force", Note: s.brute.Title})
+	}
+	inc.Stages = append(inc.Stages, "deception")
+	inc.Members = append(inc.Members, Member{At: at, Stage: "deception", Note: d.Title})
+
+	inc.Title = fmt.Sprintf("Confirmed intrusion from %s: %s → bait touched",
+		d.Actor, strings.Join(inc.Stages[:len(inc.Stages)-1], " → "))
+	inc.Detail = fmt.Sprintf(
+		"%s tripped a decoy after %s from the same source. Bait has no legitimate users, "+
+			"so this is not a heuristic: treat the host as compromised, isolate it, and review "+
+			"everything that source touched.", d.Actor, phrase(hasScan, hasBrute))
+
+	c.fired[d.Actor] = at
+	delete(c.states, d.Actor)
+	return inc
+}
+
+func phrase(hasScan, hasBrute bool) string {
+	switch {
+	case hasScan && hasBrute:
+		return "a port scan and a brute-force attempt"
+	case hasBrute:
+		return "a brute-force attempt"
+	default:
+		return "a port scan"
 	}
 }
 

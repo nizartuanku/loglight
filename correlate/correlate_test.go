@@ -145,3 +145,49 @@ func TestFullKillChainFromRawFileLines(t *testing.T) {
 		t.Errorf("incident carries zero times: first=%v last=%v", inc.FirstAt, inc.LastAt)
 	}
 }
+
+func sentinelDet(actor string, at time.Time) detect.Detection {
+	return detect.Detection{
+		Kind: detect.KindSentinel, Severity: detect.SevCritical, Actor: actor,
+		Target: "web01", FirstAt: at, LastAt: at,
+		Title: "decoy reported trap.tripped from " + actor,
+	}
+}
+
+// The Suite's whole claim: a Decoy trip from an address Loglight already saw
+// scanning is one story, not two blips.
+func TestSentinelTripAfterScanIsOneIncident(t *testing.T) {
+	c := New(10*time.Minute, 15*time.Minute)
+	c.ObserveDetection(scanDet("198.51.100.66", t0))
+	inc := c.ObserveSentinelFinding(sentinelDet("198.51.100.66", t0.Add(90*time.Second)))
+	if inc == nil {
+		t.Fatal("scan then bait touched by the same actor must correlate")
+	}
+	if inc.Severity != "critical" {
+		t.Errorf("want critical, got %q", inc.Severity)
+	}
+	if len(inc.Stages) != 2 || inc.Stages[0] != "scan" || inc.Stages[1] != "deception" {
+		t.Errorf("stages wrong: %v", inc.Stages)
+	}
+	if !inc.FirstAt.Equal(t0) {
+		t.Errorf("incident should start at the scan, got %v", inc.FirstAt)
+	}
+}
+
+// A trip on its own is not correlated here: the product that raised it already
+// alerted, and echoing it would recreate the duplicate-alert problem.
+func TestSentinelTripAloneIsNotAnIncident(t *testing.T) {
+	c := New(10*time.Minute, 15*time.Minute)
+	if inc := c.ObserveSentinelFinding(sentinelDet("203.0.113.5", t0)); inc != nil {
+		t.Fatalf("a lone finding must not become an incident: %q", inc.Title)
+	}
+}
+
+// Recon from long ago must not be stitched onto today's trip.
+func TestSentinelTripOutsideWindowDoesNotCorrelate(t *testing.T) {
+	c := New(10*time.Minute, 15*time.Minute)
+	c.ObserveDetection(scanDet("198.51.100.66", t0))
+	if inc := c.ObserveSentinelFinding(sentinelDet("198.51.100.66", t0.Add(2*time.Hour))); inc != nil {
+		t.Fatalf("a scan two hours earlier must not correlate: %q", inc.Title)
+	}
+}

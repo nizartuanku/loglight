@@ -2,6 +2,7 @@ package detect
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -264,4 +265,86 @@ func humanBytes(b int64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
+}
+
+// --- Sentinel findings (the other five products) ----------------------------
+
+// sentinelFinding recognises a finding emitted by another Sentinel tool over
+// syslog and turns it into a detection, so the correlator can place it on the
+// same actor's timeline as anything Loglight saw itself.
+//
+// Why deception outranks the rest: a Decoy trip is not a heuristic. Nobody has
+// a legitimate reason to open the bait, so a trip following recon from the same
+// address is about as close to proof of intrusion as a log line gets. That is
+// why a high-severity finding here completes a chain in its own right, where a
+// scan alone never would.
+//
+// It keys on the structured tail SyslogChannel writes — product=, severity=,
+// check=, src= — and ignores anything without a source address, because an
+// actorless finding cannot be correlated to anything.
+type sentinelFinding struct {
+	cfg  Config
+	cool *cooldown
+	evid map[string][]string
+}
+
+func newSentinelFinding(c Config) *sentinelFinding {
+	return &sentinelFinding{cfg: c, cool: newCooldown(c.Cooldown), evid: map[string][]string{}}
+}
+
+var (
+	reSentinelProduct = regexp.MustCompile(`\bproduct=([a-z0-9_.-]+)`)
+	reSentinelSev     = regexp.MustCompile(`\bseverity=([a-z]+)`)
+	reSentinelCheck   = regexp.MustCompile(`\bcheck=([a-zA-Z0-9_.-]+)`)
+	reSentinelStatus  = regexp.MustCompile(`\bstatus=([a-z]+)`)
+)
+
+func (s *sentinelFinding) observe(e logingest.Event) *Detection {
+	msg := e.Message
+	if msg == "" {
+		msg = e.Raw
+	}
+	product := firstGroup(reSentinelProduct, msg)
+	if product == "" {
+		return nil // not one of ours
+	}
+	if st := firstGroup(reSentinelStatus, msg); st == "resolved" {
+		return nil // a resolution is good news, never an incident stage
+	}
+	sev := firstGroup(reSentinelSev, msg)
+	if sev != "critical" && sev != "high" {
+		return nil // armed traps, inventory notes and the like are not signal
+	}
+	// Correlation needs an actor. A finding about your own surface (a expiring
+	// certificate, a shadowed firewall rule) has no attacker, and belongs on
+	// its own product's dashboard rather than on someone's timeline.
+	if e.SrcIP == "" {
+		return nil
+	}
+	actor := e.SrcIP
+	if !s.cool.firable("sentinel:"+product+":"+actor, e.Timestamp) {
+		return nil
+	}
+	s.evid[actor] = evidenceKeep(s.evid[actor], e.Raw, s.cfg.EvidenceMax)
+	check := firstGroup(reSentinelCheck, msg)
+
+	severity := SevHigh
+	if sev == "critical" {
+		severity = SevCritical
+	}
+	return &Detection{
+		Kind: KindSentinel, Severity: severity, Actor: actor, Target: e.Host,
+		Title:  fmt.Sprintf("%s reported %s from %s", product, orAny(check), actor),
+		Detail: fmt.Sprintf("A %s finding from %s arrived over syslog: %s", sev, product, msg),
+		Count:  1, FirstAt: e.Timestamp, LastAt: e.Timestamp,
+		Evidence: s.evid[actor],
+		Key:      "sentinel|" + product + "|" + actor,
+	}
+}
+
+func firstGroup(re *regexp.Regexp, s string) string {
+	if m := re.FindStringSubmatch(s); m != nil {
+		return m[1]
+	}
+	return ""
 }
