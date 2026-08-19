@@ -2,6 +2,12 @@
 
 **Self-hosted threat detection from your logs — brute force, scans, exfiltration, and correlated kill-chains.**
 
+![Loglight merging a port scan, a brute force and a successful login from one source into a single critical incident](docs/demo.gif)
+
+*Real run: a port sweep, then failed logins, then one that works — all from the same address, 30
+seconds end to end. Three separate detections become one CRITICAL incident with the kill chain
+attached, instead of three alerts you have to correlate yourself.*
+
 You have logs. `auth.log`, your firewall's syslog, a few Windows boxes, some
 containers. Nobody reads them — so if you're being brute-forced or something is
 beaconing out, you find out a week too late. A full SIEM (Splunk, Elastic) is a
