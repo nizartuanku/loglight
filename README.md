@@ -90,9 +90,9 @@ go test ./...
 
 Requires Go 1.24+. CGO is on for the SQLite driver.
 
-## Working with the other Sentinel tools
+## Working with the other Hexward tools
 
-Loglight is the collector end of the line. Every other Sentinel tool can emit
+Loglight is the collector end of the line. Every other Hexward tool can emit
 its findings as syslog, so point them here:
 
 ```bash
@@ -120,7 +120,7 @@ Findings with no attacker — an expiring certificate, a shadowed firewall rule 
 are ignored for correlation and belong on their own product's dashboard.
 
 Loglight can emit its own incidents the same way, so it can forward to a
-collector upstream. There is nothing Sentinel-specific about the format: any
+collector upstream. There is nothing Hexward-specific about the format: any
 syslog receiver reads it.
 
 Available on every tier, free included.
@@ -139,4 +139,4 @@ a full SOC at scale.
 
 Apache-2.0. See [LICENSE](LICENSE).
 
-Part of the **Sentinel** line of self-hosted security tools.
+Part of the **Hexward** line of self-hosted security tools.
