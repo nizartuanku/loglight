@@ -71,7 +71,7 @@ func (m *MemStore) ListDetections(sourceID string) ([]DetectionRecord, error) {
 	defer m.mu.RUnlock()
 	var out []DetectionRecord
 	for _, d := range m.dets {
-		if d.SourceID == sourceID {
+		if sourceID == "" || d.SourceID == sourceID {
 			out = append(out, d)
 		}
 	}

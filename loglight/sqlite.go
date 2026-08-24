@@ -117,7 +117,7 @@ ON CONFLICT(source_id, key) DO UPDATE SET
 func (s *SQLiteStore) ListDetections(sourceID string) ([]DetectionRecord, error) {
 	rows, err := s.db.Query(`
 SELECT source_id, key, check_id, severity, actor, target, title, detail, evidence, fix, count, first_at, last_at
-FROM loglight_detections WHERE source_id = ? ORDER BY last_at DESC`, sourceID)
+FROM loglight_detections WHERE (? = '' OR source_id = ?) ORDER BY last_at DESC`, sourceID, sourceID)
 	if err != nil {
 		return nil, err
 	}

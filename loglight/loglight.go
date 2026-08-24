@@ -1,7 +1,7 @@
-// Package loglight is the sixth Sentinel product: self-hosted threat detection
-// from logs. It wires logingest (normalize) → detect (windowed detectors) →
+// Package loglight is the sixth Hexward product: self-hosted threat detection
+// from logs and network flows. It wires logingest (normalize) → detect (windowed detectors) →
 // correlate (kill-chain) into the event-driven two-write-path shape Decoy
-// pioneered on Sentinel Core:
+// pioneered on Hexward Core:
 //
 //   - Path A (real-time): the pipeline writes a detection/incident finding the
 //     instant it fires and notifies immediately. See Sink.
@@ -69,6 +69,8 @@ type Store interface {
 	DeleteSource(name string) error
 
 	UpsertDetection(d DetectionRecord) error
+	// ListDetections returns the active detections for one source, or for every
+	// source when sourceID is "" (the traffic map's severity overlay uses that).
 	ListDetections(sourceID string) ([]DetectionRecord, error)
 	PruneDetections(before time.Time) error
 }
@@ -94,7 +96,7 @@ func (c *Collector) Describe() core.ModuleInfo {
 	return core.ModuleInfo{
 		ID:              ModuleID,
 		Name:            "Loglight",
-		Version:         "0.1.0",
+		Version:         "0.2.0",
 		TargetKind:      "source",
 		DefaultInterval: 5 * time.Minute,
 		ResolveAfter:    1,

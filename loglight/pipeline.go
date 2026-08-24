@@ -116,6 +116,10 @@ func fixFor(k detect.Kind) string {
 		return "Verify this account/privilege grant was authorised and change-controlled. If not, disable it and investigate."
 	case detect.KindAuthSpike:
 		return "Likely credential stuffing — enable rate-limiting/MFA and watch for any success from the same sources."
+	case detect.KindBeacon:
+		return "Isolate the host and inspect the process making these connections — a fixed-interval call-out to one external endpoint is the classic C2 heartbeat. Block the destination at the firewall."
+	case detect.KindNewService:
+		return "Confirm this service was installed deliberately and is change-controlled. If nobody owns it, treat it as a possible backdoor: stop it and investigate the host."
 	}
 	return "Investigate the actor and affected host."
 }

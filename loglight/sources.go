@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/nizartuanku/loglight/logingest"
+	"github.com/nizartuanku/loglight/netflow"
 )
 
 // validateSource checks a source type and its required params.
@@ -23,15 +24,31 @@ func validateSource(typ string, params map[string]string) error {
 		}
 	case "journald":
 		// unit is optional (whole journal if empty)
+	case "netflow":
+		if params["udp"] == "" {
+			return fmt.Errorf("a netflow source needs a udp listen address (e.g. 0.0.0.0:2055)")
+		}
 	default:
 		return fmt.Errorf("unknown source type %q", typ)
 	}
 	return nil
 }
 
+// SourceDeps carries optional hooks a source type needs beyond the config —
+// today just the traffic graph tap for netflow sources.
+type SourceDeps struct {
+	OnFlow func(netflow.Flow)
+}
+
 // BuildSource turns a stored SourceConfig into a runnable logingest.Source. The
 // cmd calls this to start ingesting when a source is added or restored.
 func BuildSource(s SourceConfig) (logingest.Source, error) {
+	return BuildSourceWith(s, SourceDeps{})
+}
+
+// BuildSourceWith is BuildSource with dependency hooks (used by the cmd so
+// netflow sources feed the traffic graph).
+func BuildSourceWith(s SourceConfig, deps SourceDeps) (logingest.Source, error) {
 	if err := validateSource(s.Type, s.Params); err != nil {
 		return nil, err
 	}
@@ -49,6 +66,8 @@ func BuildSource(s SourceConfig) (logingest.Source, error) {
 		return logingest.NewJournaldSource(s.Name, s.Params["unit"]), nil
 	case "docker":
 		return logingest.NewDockerSource(s.Name, s.Params["container"]), nil
+	case "netflow":
+		return &netflow.UDPSource{SourceID: s.Name, Addr: s.Params["udp"], OnFlow: deps.OnFlow}, nil
 	}
 	return nil, fmt.Errorf("unknown source type %q", s.Type)
 }

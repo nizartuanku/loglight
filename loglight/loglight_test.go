@@ -168,3 +168,32 @@ func TestSQLiteRoundTrip(t *testing.T) {
 }
 
 func toTarget(name string) core.Target { return core.Target{Raw: name, Canonical: name} }
+
+func TestListDetectionsEmptyMeansAll(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	sqls, err := NewSQLiteStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, st := range map[string]Store{"mem": NewMemStore(), "sqlite": sqls} {
+		t.Run(name, func(t *testing.T) {
+			must := func(err error) { t.Helper(); if err != nil { t.Fatal(err) } }
+			must(st.UpsertDetection(DetectionRecord{Key: "k1", SourceID: "a", Check: "detect.scan", Severity: "medium", FirstAt: time.Now(), LastAt: time.Now()}))
+			must(st.UpsertDetection(DetectionRecord{Key: "k2", SourceID: "b", Check: "detect.beacon", Severity: "high", FirstAt: time.Now(), LastAt: time.Now()}))
+			all, err := st.ListDetections("")
+			must(err)
+			if len(all) != 2 {
+				t.Fatalf(`ListDetections("") must span sources, got %d`, len(all))
+			}
+			one, err := st.ListDetections("a")
+			must(err)
+			if len(one) != 1 || one[0].Key != "k1" {
+				t.Fatalf("filtered list wrong: %+v", one)
+			}
+		})
+	}
+}

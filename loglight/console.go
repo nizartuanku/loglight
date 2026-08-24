@@ -16,6 +16,7 @@ type Console struct {
 	OnSaved   func(s SourceConfig) error // start ingesting + register target
 	OnDelete  func(name string)          // stop ingesting + deregister
 	ParseRate func(name string) float64  // live parse-rate probe (nil → omit)
+	Traffic   func() (any, error)        // 3D map snapshot (nil → endpoint absent)
 	Now       func() time.Time
 }
 
@@ -25,6 +26,19 @@ func (c *Console) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/loglight/source", c.handleSave)
 	mux.HandleFunc("DELETE /api/loglight/source", c.handleDelete)
 	mux.HandleFunc("GET /api/loglight/incidents", c.handleIncidents)
+	if c.Traffic != nil {
+		mux.HandleFunc("GET /api/loglight/trafficmap", c.handleTrafficMap)
+	}
+}
+
+func (c *Console) handleTrafficMap(w http.ResponseWriter, r *http.Request) {
+	m, err := c.Traffic()
+	if err != nil {
+		httpErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(m)
 }
 
 func (c *Console) now() time.Time {
@@ -47,6 +61,7 @@ func SourceTypes() []map[string]string {
 		{"id": "journald", "label": "systemd journald"},
 		{"id": "docker", "label": "Docker container"},
 		{"id": "windows", "label": "Windows Event (via syslog forwarder)"},
+		{"id": "netflow", "label": "NetFlow / IPFIX (router flow export)"},
 	}
 }
 
