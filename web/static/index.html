@@ -140,6 +140,7 @@
     <h1 id="product">Hexward</h1>
     <span class="tier" id="tier">…</span>
     <span class="muted" id="targetcount"></span>
+    <a id="maplink" href="/map.html" style="display:none;margin-left:auto;color:var(--accent);text-decoration:none;font-size:13px">Network Map →</a>
   </header>
   <div id="notice" class="notice" style="display:none"></div>
 
@@ -601,6 +602,7 @@ const SRC_PARAMS = {
   file:     ["path"],
   journald: ["unit"],
   docker:   ["container"],
+  netflow:  ["udp"],
 };
 
 function srcTypeChanged() {
@@ -609,11 +611,13 @@ function srcTypeChanged() {
   ["udp","tcp","path","unit","container"].forEach(p => {
     $("srcp_" + p).style.display = wanted.includes(p) ? "" : "none";
   });
+  $("srcp_udp").placeholder = t === "netflow" ? "UDP listen (0.0.0.0:2055)" : "UDP listen (0.0.0.0:5514)";
 }
 
 async function loadSources() {
   try {
     const d = await j("/api/loglight/sources");
+    document.getElementById("maplink").style.display = "";
     if (!srcTypesLoaded && Array.isArray(d.types)) {
       $("srctype").innerHTML = d.types.map(t => `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join("");
       srcTypesLoaded = true;
@@ -625,7 +629,7 @@ async function loadSources() {
 
 function renderSources(srcs) {
   if (!srcs.length) {
-    $("sources").innerHTML = `<div class="row muted">No sources yet — add one below. Point syslog, a log file, journald, Docker, or a Windows forwarder at Loglight and it watches for attacks.</div>`;
+    $("sources").innerHTML = `<div class="row muted">No sources yet — add one below. Point syslog, a log file, journald, Docker, a Windows forwarder, or your router's NetFlow/IPFIX export at Loglight and it watches for attacks.</div>`;
     return;
   }
   $("sources").innerHTML = srcs.map(s => {

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hexward — Network Map</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --surface-0: #111110;
+    --surface-1: #1a1a19;
+    --border:    #34342f;
+    --text-1:    #ffffff;
+    --text-2:    #c3c2b7;
+    --text-3:    #8a897f;
+    --critical:  #d03b3b;
+    --serious:   #ec835a;
+    --warning:   #fab219;
+    --good:      #0ca30c;
+    --accent:    #3987e5;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { background: var(--surface-0); color: var(--text-1);
+    font: 14px/1.5 -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    overflow: hidden; }
+  #graph { position: absolute; inset: 0; }
+  .hud { position: absolute; z-index: 5; background: color-mix(in srgb, var(--surface-1) 88%, transparent);
+    border: 1px solid var(--border); border-radius: var(--radius); backdrop-filter: blur(6px); }
+  #topbar { top: 14px; left: 14px; right: auto; padding: 10px 16px; display: flex; gap: 14px; align-items: center; }
+  #topbar h1 { font-size: 15px; font-weight: 700; }
+  #topbar a { color: var(--accent); text-decoration: none; font-size: 13px; }
+  #stats { top: 14px; right: 14px; padding: 10px 16px; font-size: 12px; color: var(--text-2);
+    display: flex; gap: 14px; }
+  #stats b { color: var(--text-1); font-variant-numeric: tabular-nums; }
+  #legend { bottom: 14px; left: 14px; padding: 10px 16px; font-size: 12px; color: var(--text-2);
+    display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+  #detail { bottom: 14px; right: 14px; width: 300px; max-height: 45%; overflow: auto;
+    padding: 12px 16px; display: none; font-size: 13px; }
+  #detail h3 { font-size: 14px; margin-bottom: 4px; word-break: break-all; }
+  #detail .muted { color: var(--text-3); font-size: 12px; }
+  #detail .sevline { margin-top: 6px; font-weight: 600; }
+  #empty { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; z-index: 4; }
+  #empty .card { max-width: 460px; text-align: center; color: var(--text-2); background: var(--surface-1);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; }
+  #empty h2 { color: var(--text-1); font-size: 16px; margin-bottom: 8px; }
+  #empty code { background: var(--surface-0); border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; }
+  button.ghost { background: none; border: 1px solid var(--border); color: var(--text-2); border-radius: 7px;
+    padding: 4px 10px; font-size: 12px; cursor: pointer; }
+  button.ghost:hover { color: var(--text-1); border-color: var(--text-3); }
+</style>
+</head>
+<body>
+  <div id="graph"></div>
+
+  <div class="hud" id="topbar">
+    <h1>Network Map</h1>
+    <a href="/">← Dashboard</a>
+    <button class="ghost" id="spinbtn" onclick="toggleSpin()">Pause rotation</button>
+  </div>
+
+  <div class="hud" id="stats">
+    <span>hosts <b id="nhosts">–</b></span>
+    <span>links <b id="nlinks">–</b></span>
+    <span>traffic <b id="nbytes">–</b></span>
+    <span id="collapsed" style="display:none" title="External endpoints grouped per /24 to keep the map readable">grouped /24</span>
+  </div>
+
+  <div class="hud" id="legend">
+    <span><span class="dot" style="background:#3987e5"></span>internal</span>
+    <span><span class="dot" style="background:#8a897f"></span>external</span>
+    <span><span class="dot" style="background:#fab219"></span>medium</span>
+    <span><span class="dot" style="background:#ec835a"></span>high</span>
+    <span><span class="dot" style="background:#d03b3b"></span>critical</span>
+    <span class="muted" style="color:var(--text-3)">node size = traffic · link width = bytes · click a node</span>
+  </div>
+
+  <div class="hud" id="detail">
+    <h3 id="d_id"></h3>
+    <div class="muted" id="d_kind"></div>
+    <div id="d_traffic"></div>
+    <div class="sevline" id="d_sev"></div>
+    <div class="muted" id="d_links" style="margin-top:6px"></div>
+  </div>
+
+  <div id="empty"><div class="card">
+    <h2>No flow data yet</h2>
+    <p>Add a <b>NetFlow / IPFIX</b> source on the <a href="/" style="color:var(--accent)">dashboard</a>
+    (e.g. listen on <code>0.0.0.0:2055</code>), then point your router or firewall's flow export at it —
+    MikroTik, pfSense, FortiGate, Cisco and Ubiquiti all support this natively. The map draws itself
+    as flows arrive.</p>
+  </div></div>
+
+<script src="/vendor/3d-force-graph.min.js"></script>
+<script>
+"use strict";
+const SEV_COLOR = { critical: "#d03b3b", high: "#ec835a", medium: "#fab219", low: "#0ca30c" };
+let graph = null, spinning = true, angle = 0, spinTimer = null;
+
+function fmtBytes(n) {
+  if (n >= 1e12) return (n/1e12).toFixed(1) + " TB";
+  if (n >= 1e9)  return (n/1e9).toFixed(1) + " GB";
+  if (n >= 1e6)  return (n/1e6).toFixed(1) + " MB";
+  if (n >= 1e3)  return (n/1e3).toFixed(1) + " KB";
+  return n + " B";
+}
+function nodeColor(n) {
+  if (n.severity && SEV_COLOR[n.severity]) return SEV_COLOR[n.severity];
+  return n.kind === "internal" ? "#3987e5" : "#8a897f";
+}
+function nodeSize(n, maxBytes) {
+  const rel = maxBytes > 0 ? n.bytes / maxBytes : 0;
+  return 4 + Math.sqrt(rel) * 14;
+}
+
+async function load() {
+  let data;
+  try {
+    const r = await fetch("/api/loglight/trafficmap");
+    if (!r.ok) throw new Error(await r.text());
+    data = await r.json();
+  } catch (e) {
+    document.getElementById("empty").style.display = "flex";
+    return;
+  }
+  const nodes = data.nodes || [], links = data.links || [];
+  document.getElementById("nhosts").textContent = nodes.length;
+  document.getElementById("nlinks").textContent = links.length;
+  document.getElementById("nbytes").textContent = fmtBytes(links.reduce((a, l) => a + l.bytes, 0));
+  document.getElementById("collapsed").style.display = data.collapsed ? "" : "none";
+  if (!nodes.length) {
+    document.getElementById("empty").style.display = "flex";
+    if (graph) graph.graphData({ nodes: [], links: [] });
+    return;
+  }
+  document.getElementById("empty").style.display = "none";
+
+  const maxBytes = Math.max(...nodes.map(n => n.bytes), 1);
+  const maxLink = Math.max(...links.map(l => l.bytes), 1);
+  const gData = {
+    nodes: nodes.map(n => ({ ...n })),
+    links: links.map(l => ({ ...l, source: l.source, target: l.target })),
+  };
+
+  if (!graph) {
+    if (typeof ForceGraph3D === "undefined" || !window.WebGLRenderingContext) {
+      document.getElementById("empty").style.display = "flex";
+      document.querySelector("#empty .card").innerHTML =
+        "<h2>3D view unavailable</h2><p>This browser has no WebGL. The traffic data itself is fine — see the findings on the <a href='/' style='color:var(--accent)'>dashboard</a>.</p>";
+      return;
+    }
+    graph = ForceGraph3D()(document.getElementById("graph"))
+      .backgroundColor("#111110")
+      .showNavInfo(false)
+      .nodeLabel(n => `<div style="background:#1a1a19;border:1px solid #34342f;border-radius:7px;padding:5px 9px;color:#fff;font:12px sans-serif">${n.id}${n.members > 1 ? " · " + n.members + " hosts" : ""}<br><span style=\"color:#8a897f\">${fmtBytes(n.bytes)} · ${n.flows} flows${n.severity ? " · " + n.severity : ""}</span></div>`)
+      .nodeColor(nodeColor)
+      .nodeVal(n => nodeSize(n, maxBytes))
+      .nodeOpacity(0.92)
+      .linkColor(() => "#5a594f")
+      .linkOpacity(0.35)
+      .linkWidth(l => 0.4 + (l.bytes / maxLink) * 3)
+      .linkDirectionalParticles(l => (l.bytes / maxLink) > 0.15 ? 2 : 0)
+      .linkDirectionalParticleSpeed(0.004)
+      .linkDirectionalParticleWidth(1.6)
+      .onEngineStop(() => { if (!window._fitted) { window._fitted = true; graph.zoomToFit(600, 60); } })
+      .onNodeClick(showDetail)
+      .onBackgroundClick(() => { document.getElementById("detail").style.display = "none"; });
+    startSpin();
+  } else {
+    graph.nodeVal(n => nodeSize(n, maxBytes)).linkWidth(l => 0.4 + (l.bytes / maxLink) * 3);
+  }
+  graph.graphData(gData);
+  window._links = gData.links;
+}
+
+function showDetail(n) {
+  const d = document.getElementById("detail");
+  d.style.display = "block";
+  document.getElementById("d_id").textContent = n.id;
+  document.getElementById("d_kind").textContent =
+    n.kind === "group" ? `external group · ${n.members} hosts (/24)` : n.kind + " host";
+  document.getElementById("d_traffic").textContent = `${fmtBytes(n.bytes)} · ${n.flows} flows`;
+  const sev = document.getElementById("d_sev");
+  if (n.severity) {
+    sev.style.color = SEV_COLOR[n.severity] || "#fff";
+    sev.textContent = "Active " + n.severity + " detection on this host — see dashboard findings.";
+  } else {
+    sev.style.color = "var(--good)";
+    sev.textContent = "No active detections.";
+  }
+  const touching = (window._links || []).filter(l =>
+    (l.source.id || l.source) === n.id || (l.target.id || l.target) === n.id);
+  touching.sort((a, b) => b.bytes - a.bytes);
+  document.getElementById("d_links").innerHTML = touching.slice(0, 8).map(l => {
+    const s = l.source.id || l.source, t = l.target.id || l.target;
+    return `${s === n.id ? "→ " + t : "← " + s} · :${l.top_port} · ${fmtBytes(l.bytes)}`;
+  }).join("<br>") || "";
+}
+
+function startSpin() {
+  if (spinTimer) clearInterval(spinTimer);
+  spinTimer = setInterval(() => {
+    if (!spinning || !graph) return;
+    angle += 0.0012;
+    const p = graph.cameraPosition();
+    const dist = Math.max(200, Math.hypot(p.x, p.z));
+    graph.cameraPosition({ x: dist * Math.sin(angle), z: dist * Math.cos(angle) });
+  }, 30);
+  // Any manual interaction pauses the rotation.
+  document.getElementById("graph").addEventListener("pointerdown", () => {
+    spinning = false;
+    document.getElementById("spinbtn").textContent = "Resume rotation";
+  }, { once: false });
+}
+function toggleSpin() {
+  spinning = !spinning;
+  document.getElementById("spinbtn").textContent = spinning ? "Pause rotation" : "Resume rotation";
+}
+
+load();
+setInterval(load, 15000); // refresh the data; the layout keeps its positions
+</script>
+</body>
+</html>
