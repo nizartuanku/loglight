@@ -21,6 +21,8 @@ const (
 	KindExfil      Kind = "exfil"
 	KindNewAdmin   Kind = "new_admin"
 	KindAuthSpike  Kind = "auth_spike"
+	KindBeacon     Kind = "beacon"      // regular-interval flows to one external endpoint (C2 heartbeat)
+	KindNewService Kind = "new_service" // an internal host starts accepting flows on a never-seen port
 	// KindSentinel is a finding another Sentinel product sent us over syslog.
 	KindSentinel Kind = "sentinel_finding"
 )
@@ -65,6 +67,11 @@ type Config struct {
 	ExfilWindow   time.Duration // default 60s
 	SpikeMin      int           // service-wide failures (from ≥3 sources) to fire (default 20)
 	SpikeWindow   time.Duration // default 60s
+	BeaconMin     int           // regular beats to one endpoint to fire (default 8)
+	BeaconMinGap  time.Duration // shortest plausible beacon interval (default 10s)
+	BeaconMaxGap  time.Duration // longest plausible beacon interval (default 1h)
+	BeaconMaxCV   float64       // max coefficient of variation of the interval (default 0.2)
+	NewServiceLearn time.Duration // per-host learning window before new ports fire (default 30m)
 	Cooldown      time.Duration // per-key silence after firing (default 5m)
 	EvidenceMax   int           // sample lines kept per detection (default 5)
 }
@@ -100,6 +107,21 @@ func (c Config) withDefaults() Config {
 	if c.Cooldown == 0 {
 		c.Cooldown = 5 * time.Minute
 	}
+	if c.BeaconMin == 0 {
+		c.BeaconMin = 8
+	}
+	if c.BeaconMinGap == 0 {
+		c.BeaconMinGap = 10 * time.Second
+	}
+	if c.BeaconMaxGap == 0 {
+		c.BeaconMaxGap = time.Hour
+	}
+	if c.BeaconMaxCV == 0 {
+		c.BeaconMaxCV = 0.2
+	}
+	if c.NewServiceLearn == 0 {
+		c.NewServiceLearn = 30 * time.Minute
+	}
 	if c.EvidenceMax == 0 {
 		c.EvidenceMax = 5
 	}
@@ -117,6 +139,8 @@ type Engine struct {
 	newAdmin  *newAdmin
 	authSpike *authSpike
 	sentinel  *sentinelFinding
+	beacon    *beacon
+	newSvc    *newService
 }
 
 // NewEngine builds the detector engine with the given (defaulted) config.
@@ -130,6 +154,8 @@ func NewEngine(cfg Config) *Engine {
 		newAdmin:  newNewAdmin(c),
 		authSpike: newAuthSpike(c),
 		sentinel:  newSentinelFinding(c),
+		beacon:    newBeacon(c),
+		newSvc:    newNewService(c),
 	}
 }
 
@@ -139,7 +165,7 @@ func (e *Engine) Observe(ev logingest.Event) []Detection {
 	for _, d := range []interface {
 		observe(logingest.Event) *Detection
 	}{
-		e.brute, e.scan, e.exfil, e.newAdmin, e.authSpike, e.sentinel,
+		e.brute, e.scan, e.exfil, e.newAdmin, e.authSpike, e.sentinel, e.beacon, e.newSvc,
 	} {
 		if det := d.observe(ev); det != nil {
 			out = append(out, *det)
