@@ -20,6 +20,7 @@ const (
 	SourceJournald SourceType = "journald"
 	SourceDocker   SourceType = "docker"
 	SourceWindows  SourceType = "windows" // forwarded to syslog by NXLog/winlogbeat
+	SourceNetflow  SourceType = "netflow" // NetFlow v5/v9/IPFIX flow telemetry (UDP)
 )
 
 // AuthOutcome is the parsed result of an authentication-related line.
@@ -47,6 +48,7 @@ type Event struct {
 	Auth     AuthOutcome // failure/success/none
 	User     string      // account the line concerns, if any
 	SrcIP    string      // actor / source address, if any
+	DstIP    string      // destination address, if any (flow sources fill this)
 	DstPort  int         // destination port, if any (0 = none)
 	BytesOut int64       // egress bytes, if the line reports them (0 = none)
 	Action   string      // "new_admin" | "accept" | "deny" | "" — coarse tag for detectors
