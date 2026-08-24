@@ -1,12 +1,14 @@
 // loglight is the Loglight product binary: self-hosted threat detection from
-// logs on Sentinel Core.
+// logs and network flows on Hexward Core.
 //
 //	loglight                       # dashboard on 127.0.0.1:8427
 //	loglight -webhook <url>        # push incidents to a webhook
 //
-// Add ingest sources (syslog, file, journald, Docker, or forwarded Windows
-// events) on the dashboard, and Loglight surfaces brute force, scanning,
-// exfiltration, new-admin, and correlated kill-chain incidents — worst first.
+// Add ingest sources (syslog, file, journald, Docker, forwarded Windows
+// events, or NetFlow/IPFIX from a router) on the dashboard, and Loglight
+// surfaces brute force, scanning, exfiltration, new-admin, beaconing,
+// new-service, and correlated kill-chain incidents — worst first, plus a 3D
+// map of who talks to whom on the network.
 package main
 
 import (
@@ -32,6 +34,7 @@ import (
 	"github.com/nizartuanku/loglight/notify"
 	"github.com/nizartuanku/loglight/sched"
 	"github.com/nizartuanku/loglight/store"
+	"github.com/nizartuanku/loglight/traffic"
 	"github.com/nizartuanku/loglight/web"
 )
 
@@ -67,6 +70,10 @@ func main() {
 		fatal(err.Error())
 	}
 	logStore, err := loglight.NewSQLiteStore(db)
+	if err != nil {
+		fatal(err.Error())
+	}
+	graph, err := traffic.NewGraph(db)
 	if err != nil {
 		fatal(err.Error())
 	}
@@ -110,7 +117,7 @@ func main() {
 		if err != nil || !ok {
 			return
 		}
-		if s, err := loglight.BuildSource(src); err == nil {
+		if s, err := loglight.BuildSourceWith(src, loglight.SourceDeps{OnFlow: graph.Observe}); err == nil {
 			ingest.Add(s)
 		} else {
 			fmt.Fprintf(os.Stderr, "loglight: source %q not started: %v\n", name, err)
@@ -140,8 +147,18 @@ func main() {
 		Store:     logStore,
 		Caps:      func() int { return server.EffectiveLimits().MaxTargets },
 		ParseRate: ingest.ParseRate,
+		Traffic: func() (any, error) {
+			// Map window follows the tier's retention (free 3d, Pro 30d, ∞ Team).
+			since := time.Time{}
+			if days := server.EffectiveLimits().RetentionDays; days > 0 {
+				since = time.Now().AddDate(0, 0, -days)
+			}
+			return graph.Snapshot(since, func(ip string) string {
+				return worstDetectionSeverity(logStore, ip)
+			})
+		},
 		OnSaved: func(s loglight.SourceConfig) error {
-			src, err := loglight.BuildSource(s)
+			src, err := loglight.BuildSourceWith(s, loglight.SourceDeps{OnFlow: graph.Observe})
 			if err != nil {
 				return err
 			}
@@ -170,6 +187,10 @@ func main() {
 	// Prune events/detections older than the active window periodically.
 	go pruneLoop(ctx, logStore)
 
+	// Flush the traffic graph buffer and prune it by the tier's retention.
+	go graph.RunFlusher(ctx.Done(), 5*time.Second)
+	go trafficPruneLoop(ctx, graph, func() int { return server.EffectiveLimits().RetentionDays })
+
 	httpSrv := &http.Server{Addr: *listen, Handler: server.Handler()}
 	go func() {
 		<-ctx.Done()
@@ -183,6 +204,41 @@ func main() {
 	fmt.Printf("Dashboard: http://%s\n", *listen)
 	if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		fatal(err.Error())
+	}
+}
+
+// worstDetectionSeverity maps a host to the worst active detection touching it,
+// so the 3D map can colour compromised hosts.
+func worstDetectionSeverity(s loglight.Store, ip string) string {
+	dets, err := s.ListDetections("")
+	if err != nil {
+		return ""
+	}
+	rank := map[string]int{"critical": 4, "high": 3, "medium": 2, "low": 1}
+	worst := ""
+	for _, d := range dets {
+		if d.Actor != ip && d.Target != ip {
+			continue
+		}
+		if rank[d.Severity] > rank[worst] {
+			worst = d.Severity
+		}
+	}
+	return worst
+}
+
+func trafficPruneLoop(ctx context.Context, g *traffic.Graph, retentionDays func() int) {
+	tick := time.NewTicker(time.Hour)
+	defer tick.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-tick.C:
+			if days := retentionDays(); days > 0 {
+				_ = g.Prune(time.Now().AddDate(0, 0, -days))
+			}
+		}
 	}
 }
 
