@@ -1,6 +1,6 @@
 # Loglight
 
-**Self-hosted threat detection from your logs — brute force, scans, exfiltration, and correlated kill-chains.**
+**Self-hosted threat detection from your logs and network flows — brute force, scans, exfiltration, beaconing, and correlated kill-chains, with a 3D map of your network.**
 
 ![Loglight merging a port scan, a brute force and a successful login from one source into a single critical incident](docs/demo.gif)
 
@@ -20,6 +20,8 @@ a short, ranked list of *what looks like an attack*:
 - **Port & host scans** — one source touching many distinct ports fast.
 - **Abnormal egress** — outbound volume far above a host's baseline (possible exfiltration).
 - **New privileged accounts** — `useradd`, sudoers/group changes, Windows 4720/4728 — the classic persistence step.
+- **Beaconing** *(v0.2, from flows)* — an internal host calling one external endpoint at a metronome-regular interval: the C2 heartbeat.
+- **New services** *(v0.2, from flows)* — a host starts accepting connections on a port never seen for it before.
 
 > The SIEM part: it **correlates**. A scan, then a brute force, then a successful
 > login from the same source isn't three blips — it's one **CRITICAL kill-chain
@@ -33,8 +35,21 @@ small, explained, ranked set of incidents without a query language.
 ## Ingest sources
 
 syslog (UDP/TCP, RFC3164 & RFC5424), tailed files (rotation-safe), systemd
-journald, Docker containers, and Windows Event Log (via a syslog forwarder). All
+journald, Docker containers, Windows Event Log (via a syslog forwarder), and —
+new in v0.2 — **NetFlow v5 / v9 / IPFIX** flow export from the router or
+firewall you already own (MikroTik, pfSense, FortiGate, Cisco, Ubiquiti). All
 normalize to one event model, so every detector works across every source.
+
+## 3D Network Map (v0.2)
+
+Feed Loglight a NetFlow/IPFIX source and it draws your network as a live,
+rotatable **3D map** — every host a node sized by traffic, every conversation a
+link, and any host with an active detection glowing by severity. Rendered fully
+offline with a vendored WebGL engine: no CDN, no external requests, true to the
+self-hosted promise. External endpoints auto-group per /24 when the internet
+side gets busy, so the picture stays readable. Flow records are **metadata
+only** (who talked to whom, which port, how many bytes) — never packet
+contents.
 
 ## Self-hosted by design
 
@@ -55,7 +70,8 @@ docker run -d -p 127.0.0.1:8427:8427 -p 5514:5514/udp -v loglight-data:/data log
 
 Open `http://127.0.0.1:8427`, add a log source (start with a syslog listener or
 tail `/var/log/auth.log`), point your hosts at it, and watch the findings — worst
-first.
+first. For the 3D map, add a **NetFlow / IPFIX** source (e.g. UDP `0.0.0.0:2055`),
+point your router's flow export at it, and open **Network Map** in the header.
 
 ## Free vs paid
 
@@ -131,7 +147,12 @@ Loglight is a **detection** tool, not a forensics platform or a searchable log
 archive — it keeps bounded recent events for context, not a long-term store.
 Detections are curated, tuned rules (not ML/UEBA); correlation is time- and
 entity-bounded heuristics, and every incident shows its member events so you can
-judge. Windows ingest is via a syslog forwarder (not a native agent). It's the
+judge. Windows ingest is via a syslog forwarder (not a native agent). Flow
+telemetry is sampled/aggregated metadata, not packet capture — egress baselines
+need a day or two to settle, and the beacon/new-service learning state is
+in-memory, so a restart re-learns (a persisting pattern simply re-opens the same
+finding). Your exporter must support NetFlow/IPFIX (most business routers do;
+some ISP boxes don't — pfSense or MikroTik in front solves it). It's the
 high-signal self-hosted layer for teams that have no SIEM — not a replacement for
 a full SOC at scale.
 

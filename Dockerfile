@@ -26,4 +26,5 @@ COPY --from=build /out/loglight /usr/local/bin/loglight
 USER loglight
 VOLUME /data
 EXPOSE 8427
+EXPOSE 2055/udp
 ENTRYPOINT ["loglight", "-listen", "0.0.0.0:8427", "-db", "/data/loglight.db", "-license", "/data/loglight-license.key"]
