@@ -158,6 +158,6 @@ a full SOC at scale.
 
 ## License
 
-Apache-2.0. See [LICENSE](LICENSE).
+Apache-2.0. See [LICENSE.txt](LICENSE.txt).
 
 Part of the **Hexward** line of self-hosted security tools.
