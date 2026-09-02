@@ -36,7 +36,7 @@ type FileSource struct {
 	Now func() time.Time
 }
 
-func (f *FileSource) ID() string         { return f.SourceID }
+func (f *FileSource) ID() string { return f.SourceID }
 func (f *FileSource) Type() SourceType {
 	if f.Kind != "" {
 		return f.Kind

@@ -58,22 +58,22 @@ type Detection struct {
 // Config holds tunable thresholds. Zero values fall back to sane defaults via
 // withDefaults, so callers can set only what they care about.
 type Config struct {
-	BruteFailures int           // failures within BruteWindow to fire (default 8)
-	BruteWindow   time.Duration // default 60s
-	ScanPorts     int           // distinct dst ports within ScanWindow to fire (default 10)
-	ScanWindow    time.Duration // default 30s
-	ExfilBytes    int64         // absolute egress floor within ExfilWindow (default 50MB)
-	ExfilFactor   float64       // multiple over rolling baseline to fire (default 4x)
-	ExfilWindow   time.Duration // default 60s
-	SpikeMin      int           // service-wide failures (from ≥3 sources) to fire (default 20)
-	SpikeWindow   time.Duration // default 60s
-	BeaconMin     int           // regular beats to one endpoint to fire (default 8)
-	BeaconMinGap  time.Duration // shortest plausible beacon interval (default 10s)
-	BeaconMaxGap  time.Duration // longest plausible beacon interval (default 1h)
-	BeaconMaxCV   float64       // max coefficient of variation of the interval (default 0.2)
+	BruteFailures   int           // failures within BruteWindow to fire (default 8)
+	BruteWindow     time.Duration // default 60s
+	ScanPorts       int           // distinct dst ports within ScanWindow to fire (default 10)
+	ScanWindow      time.Duration // default 30s
+	ExfilBytes      int64         // absolute egress floor within ExfilWindow (default 50MB)
+	ExfilFactor     float64       // multiple over rolling baseline to fire (default 4x)
+	ExfilWindow     time.Duration // default 60s
+	SpikeMin        int           // service-wide failures (from ≥3 sources) to fire (default 20)
+	SpikeWindow     time.Duration // default 60s
+	BeaconMin       int           // regular beats to one endpoint to fire (default 8)
+	BeaconMinGap    time.Duration // shortest plausible beacon interval (default 10s)
+	BeaconMaxGap    time.Duration // longest plausible beacon interval (default 1h)
+	BeaconMaxCV     float64       // max coefficient of variation of the interval (default 0.2)
 	NewServiceLearn time.Duration // per-host learning window before new ports fire (default 30m)
-	Cooldown      time.Duration // per-key silence after firing (default 5m)
-	EvidenceMax   int           // sample lines kept per detection (default 5)
+	Cooldown        time.Duration // per-key silence after firing (default 5m)
+	EvidenceMax     int           // sample lines kept per detection (default 5)
 }
 
 func (c Config) withDefaults() Config {

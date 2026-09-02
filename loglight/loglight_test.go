@@ -181,7 +181,12 @@ func TestListDetectionsEmptyMeansAll(t *testing.T) {
 	}
 	for name, st := range map[string]Store{"mem": NewMemStore(), "sqlite": sqls} {
 		t.Run(name, func(t *testing.T) {
-			must := func(err error) { t.Helper(); if err != nil { t.Fatal(err) } }
+			must := func(err error) {
+				t.Helper()
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
 			must(st.UpsertDetection(DetectionRecord{Key: "k1", SourceID: "a", Check: "detect.scan", Severity: "medium", FirstAt: time.Now(), LastAt: time.Now()}))
 			must(st.UpsertDetection(DetectionRecord{Key: "k2", SourceID: "b", Check: "detect.beacon", Severity: "high", FirstAt: time.Now(), LastAt: time.Now()}))
 			all, err := st.ListDetections("")

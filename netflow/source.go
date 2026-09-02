@@ -16,8 +16,8 @@ import (
 // Flow — the traffic graph aggregator hangs off it.
 type UDPSource struct {
 	SourceID string
-	Addr     string        // UDP listen address, e.g. "0.0.0.0:2055"
-	OnFlow   func(Flow)    // optional tap for the traffic graph
+	Addr     string     // UDP listen address, e.g. "0.0.0.0:2055"
+	OnFlow   func(Flow) // optional tap for the traffic graph
 	Now      func() time.Time
 
 	templates *TemplateCache

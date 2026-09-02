@@ -85,8 +85,8 @@ type fixedSource struct {
 	evs []Event
 }
 
-func (f *fixedSource) ID() string         { return f.id }
-func (f *fixedSource) Type() SourceType   { return SourceFile }
+func (f *fixedSource) ID() string       { return f.id }
+func (f *fixedSource) Type() SourceType { return SourceFile }
 func (f *fixedSource) Run(ctx context.Context, emit func(Event)) error {
 	for _, e := range f.evs {
 		emit(e)

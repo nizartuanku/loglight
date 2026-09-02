@@ -70,9 +70,9 @@ func buildV9(t *testing.T) ([]byte, []byte) {
 	rec := make([]byte, 0, 21)
 	rec = append(rec, net.ParseIP("10.0.0.5").To4()...)
 	rec = append(rec, net.ParseIP("198.51.100.9").To4()...)
-	rec = append(rec, 0x9c, 0x40) // srcport 40000
-	rec = append(rec, 0x01, 0xbb) // dstport 443
-	rec = append(rec, 17)         // udp
+	rec = append(rec, 0x9c, 0x40)       // srcport 40000
+	rec = append(rec, 0x01, 0xbb)       // dstport 443
+	rec = append(rec, 17)               // udp
 	rec = append(rec, 0, 0, 0x30, 0x39) // 12345 bytes
 	rec = append(rec, 0, 0, 0, 9)
 	data := []byte{
@@ -134,7 +134,7 @@ func TestParseIPFIX(t *testing.T) {
 	rec := make([]byte, 0, 14)
 	rec = append(rec, net.ParseIP("172.16.0.7").To4()...)
 	rec = append(rec, net.ParseIP("203.0.113.99").To4()...)
-	rec = append(rec, 0x00, 0x16)       // 22
+	rec = append(rec, 0x00, 0x16)          // 22
 	rec = append(rec, 0, 0x0f, 0x42, 0x40) // 1_000_000
 	data := []byte{
 		0, 10, 0, 0,

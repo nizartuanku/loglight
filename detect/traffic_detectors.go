@@ -108,10 +108,10 @@ func humanInterval(sec float64) string {
 // keys: after a restart the learning window re-arms, and a persisting service
 // simply re-opens the same finding (documented honest limit).
 type newService struct {
-	cfg   Config
-	seen  map[string]map[int]struct{}
-	born  map[string]time.Time
-	cool  *cooldown
+	cfg  Config
+	seen map[string]map[int]struct{}
+	born map[string]time.Time
+	cool *cooldown
 }
 
 func newNewService(c Config) *newService {
@@ -150,9 +150,9 @@ func (s *newService) observe(e logingest.Event) *Detection {
 	}
 	return &Detection{
 		Kind: KindNewService, Severity: SevMedium, Actor: e.SrcIP, Target: h,
-		Title:  fmt.Sprintf("New service on %s: port %d", h, e.DstPort),
-		Detail: fmt.Sprintf("%s started accepting connections on port %d, never seen for this host before. New listening services are how backdoors and unauthorised software announce themselves.", h, e.DstPort),
-		Count:  1,
+		Title:   fmt.Sprintf("New service on %s: port %d", h, e.DstPort),
+		Detail:  fmt.Sprintf("%s started accepting connections on port %d, never seen for this host before. New listening services are how backdoors and unauthorised software announce themselves.", h, e.DstPort),
+		Count:   1,
 		FirstAt: e.Timestamp, LastAt: e.Timestamp,
 		Evidence: []string{e.Raw},
 		Key:      key,
