@@ -75,7 +75,7 @@ point your router's flow export at it, and open **Network Map** in the header.
 
 ## Free vs paid
 
-This repository is the **free edition**: **1 source**, all five detections,
+This repository is the **free edition**: **1 source**, all seven detections,
 webhook notifications, 3-day retention, self-hosted, no telemetry. It runs the
 same detection engine as the paid edition.
 
@@ -85,7 +85,7 @@ and adds the correlation layer and team features:
 | | Free | Pro | Team |
 |---|---|---|---|
 | Sources | 1 | 10 | unlimited |
-| Detections (brute, scan, exfil, new-admin, spike) | ✓ | ✓ | ✓ |
+| Detections (brute, scan, exfil, new-admin, spike, beaconing, new-service) | ✓ | ✓ | ✓ |
 | Kill-chain correlation | — | ✓ | ✓ |
 | Custom thresholds · scan-now | — | ✓ | ✓ |
 | Notifications | webhook | + email/Slack/Telegram | + PagerDuty/MS Teams |
