@@ -61,7 +61,9 @@ run on an isolated management host.
 ## Quick start
 
 ```bash
-# Docker (map any syslog listener ports you configure)
+# Docker — build the image from this repo first; there is no published loglight image
+# (map any syslog listener ports you configure)
+docker build -t loglight .
 docker run -d -p 127.0.0.1:8427:8427 -p 5514:5514/udp -v loglight-data:/data loglight
 
 # Or the bare binary
@@ -92,6 +94,8 @@ and adds the correlation layer and team features:
 | Retention | 3 days | 30 days | unlimited (disk-bound) |
 | Multi-user | — | — | ✓ |
 | Support | community | email | priority |
+
+**Whop sells paid licences only.** Free: github.com/nizartuanku/loglight — this repository is the free edition, Apache-2.0, no time limit; nothing on Whop is free, so try it here first.
 
 Licensing is offline: an expired or absent key simply returns to free limits.
 
