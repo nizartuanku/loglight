@@ -117,7 +117,7 @@ its findings as syslog, so point them here:
 
 ```bash
 decoy      -syslog loglight.internal:5514        # udp by default
-certwatch  -syslog loglight.internal:5514 -syslog-network tcp
+certlight  -syslog loglight.internal:5514 -syslog-network tcp
 ```
 
 then add a matching source in Loglight:
@@ -125,7 +125,7 @@ then add a matching source in Loglight:
 ```bash
 curl -X POST localhost:8427/api/loglight/source \
   -H 'Content-Type: application/json' \
-  -d '{"name":"sentinel-bus","type":"syslog","params":{"udp":"0.0.0.0:5514"}}'
+  -d '{"name":"hexward-bus","type":"syslog","params":{"udp":"0.0.0.0:5514"}}'
 ```
 
 Their findings then sit next to Loglight's own detections, and high or critical
