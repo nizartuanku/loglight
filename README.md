@@ -88,9 +88,9 @@ and adds the correlation layer and team features:
 |---|---|---|---|
 | Sources | 1 | 10 | unlimited |
 | Detections (brute, scan, exfil, new-admin, spike, beaconing, new-service) | ✓ | ✓ | ✓ |
-| Kill-chain correlation | — | ✓ | ✓ |
+| Kill-chain correlation | ✓ — full chain needs ≥2 sources | ✓ | ✓ |
 | Custom thresholds · scan-now | — | ✓ | ✓ |
-| Notifications | webhook | + email/Slack/Telegram | + PagerDuty/MS Teams |
+| Notifications | webhook, syslog | + email/Slack/Telegram | + PagerDuty/MS Teams |
 | Retention | 3 days | 30 days | unlimited (disk-bound) |
 | Multi-user | — | — | ✓ |
 | Support | community | email | priority |
