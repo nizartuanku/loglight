@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- **AI Assist (optional): an ✨ Explain button on every finding.** When Loglight is started
+  with `-ai-assist-url`, a local [hexward-ai](https://github.com/nizartuanku/hexward-ai) sidecar
+  explains a finding in plain language and lists what to verify. The engine remains the only
+  source of findings and severity. Only one sanitised finding is sent (secret-like evidence keys
+  are dropped). Any AI failure shows a quiet note and changes nothing. Free edition: a sidecar on
+  the same host. Pro/Team: also a dedicated AI host or your own endpoint
+  (`-ai-assist-key-file`). English or Bahasa Indonesia (`-ai-assist-lang`). New endpoints
+  `GET /api/ai` and `POST /api/findings/explain`, covered by tests for: AI off, bad config,
+  sanitising, tier gating, sidecar down, and bad requests.
+
 ## 0.2.1 — 2026-09-24
 
 - **The tier table and the binary now agree on two rows, and the binary was right about one of them.** Syslog is a free alert channel, alongside webhook. Kill-chain correlation runs on every tier — it was documented as a paid feature it had never actually been gated behind.
