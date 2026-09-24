@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.2 — 2026-09-24
 
 - **AI Assist (optional): an ✨ Explain button on every finding.** When Loglight is started
   with `-ai-assist-url`, a local [hexward-ai](https://github.com/nizartuanku/hexward-ai) sidecar
