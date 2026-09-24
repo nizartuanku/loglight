@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.1 — 2026-09-24
 
 - **The tier table and the binary now agree on two rows, and the binary was right about one of them.** Syslog is a free alert channel, alongside webhook. Kill-chain correlation runs on every tier — it was documented as a paid feature it had never actually been gated behind.
 - **Verification identifiers renamed to Hexward.** The HTTP header, DNS TXT label and well-known file used to prove ownership now read `X-Hexward-Token`, `_hexward-verify.<domain>` and `/.well-known/hexward-verify.txt`. A challenge is satisfied by either the old or the new identifier and the webhook sends both headers, so nothing already installed breaks. The old names are removed on **1 March 2027**.

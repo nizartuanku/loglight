@@ -96,7 +96,7 @@ func (c *Collector) Describe() core.ModuleInfo {
 	return core.ModuleInfo{
 		ID:              ModuleID,
 		Name:            "Loglight",
-		Version:         "0.2.0",
+		Version:         "0.2.1",
 		TargetKind:      "source",
 		DefaultInterval: 5 * time.Minute,
 		ResolveAfter:    1,

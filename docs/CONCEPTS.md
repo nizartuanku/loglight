@@ -127,10 +127,10 @@ the format: any syslog receiver reads it.
 ## Try it on one source
 
 ```
-curl -LO https://github.com/nizartuanku/loglight/releases/latest/download/loglight-free-0.2.0-linux-amd64.tar.gz
+curl -LO https://github.com/nizartuanku/loglight/releases/latest/download/loglight-free-0.2.1-linux-amd64.tar.gz
 curl -LO https://github.com/nizartuanku/loglight/releases/latest/download/SHA256SUMS
 sha256sum -c SHA256SUMS
-tar xzf loglight-free-0.2.0-linux-amd64.tar.gz && cd loglight-0.2.0
+tar xzf loglight-free-0.2.1-linux-amd64.tar.gz && cd loglight-0.2.1
 ./loglight
 ```
 
