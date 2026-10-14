@@ -1,0 +1,14 @@
+{
+    "product": "Loglight",
+    "tier": "free",
+    "counts": {
+        "critical": 1,
+        "high": 1,
+        "medium": 1
+    },
+    "open_total": 3,
+    "targets": 1,
+    "max_targets": 1,
+    "can_scan_now": false,
+    "target_kind": "source"
+}

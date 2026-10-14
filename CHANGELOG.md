@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Docs: added `docs/samples/` — a real run of the README's headline scenario (port scan → brute force → successful login, one syslog source), findings exported exactly as the API returned them.
 - Docs: English is the supported AI Assist language in this release. Bahasa Indonesia
   (`-ai-assist-lang id`) is an unsupported preview; more languages will be added based on demand.
 

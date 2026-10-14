@@ -1,0 +1,40 @@
+{
+    "sources": [
+        {
+            "name": "sample-syslog",
+            "type": "syslog",
+            "params": {
+                "udp": "127.0.0.1:16514"
+            },
+            "enabled": true,
+            "created_at": "2026-10-14T02:08:53.30278853Z",
+            "parse_rate": 1
+        }
+    ],
+    "types": [
+        {
+            "id": "syslog",
+            "label": "Syslog (UDP/TCP)"
+        },
+        {
+            "id": "file",
+            "label": "File tail"
+        },
+        {
+            "id": "journald",
+            "label": "systemd journald"
+        },
+        {
+            "id": "docker",
+            "label": "Docker container"
+        },
+        {
+            "id": "windows",
+            "label": "Windows Event (via syslog forwarder)"
+        },
+        {
+            "id": "netflow",
+            "label": "NetFlow / IPFIX (router flow export)"
+        }
+    ]
+}

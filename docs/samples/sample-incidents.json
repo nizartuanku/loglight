@@ -1,0 +1,65 @@
+{
+    "incidents": [
+        {
+            "actor": "203.0.113.77",
+            "check": "incident.killchain",
+            "count": 3,
+            "detail": "203.0.113.77 authenticated successfully to DevNet immediately after a brute-force attempt, itself preceded by a port scan from the same source. Treat as a possible account compromise: rotate the credential and review the session.",
+            "evidence": [
+                "2026-10-14T09:09:05+07:00  [scan]  Port scan: 203.0.113.77 hit 10 distinct ports",
+                "2026-10-14T09:09:05+07:00  [brute_force]  Brute force: 8 failed logins from 203.0.113.77",
+                "2026-10-14T09:09:05+07:00  [success]  successful login as ops-admin on DevNet"
+            ],
+            "first_at": "2026-10-14T02:09:05Z",
+            "incident": true,
+            "key": "killchain|203.0.113.77",
+            "last_at": "2026-10-14T02:09:05Z",
+            "severity": "critical",
+            "source": "sample-syslog",
+            "target": "DevNet",
+            "title": "Likely intrusion from 203.0.113.77: scan \u2192 brute force \u2192 successful login"
+        },
+        {
+            "actor": "203.0.113.77",
+            "check": "detect.brute_force",
+            "count": 8,
+            "detail": "8 authentication failures within 1m0s (target DevNet).",
+            "evidence": [
+                "<13>1 2026-10-14T09:09:05.330935+07:00 DevNet sshd - - [timeQuality tzKnown=\"1\" isSynced=\"1\" syncAccuracy=\"366500\"] Failed password for invalid user ops-admin from 203.0.113.77 port 5001 ssh2",
+                "<13>1 2026-10-14T09:09:05.334476+07:00 DevNet sshd - - [timeQuality tzKnown=\"1\" isSynced=\"1\" syncAccuracy=\"366500\"] Failed password for invalid user ops-admin from 203.0.113.77 port 5002 ssh2",
+                "<13>1 2026-10-14T09:09:05.338173+07:00 DevNet sshd - - [timeQuality tzKnown=\"1\" isSynced=\"1\" syncAccuracy=\"366500\"] Failed password for invalid user ops-admin from 203.0.113.77 port 5003 ssh2",
+                "<13>1 2026-10-14T09:09:05.342053+07:00 DevNet sshd - - [timeQuality tzKnown=\"1\" isSynced=\"1\" syncAccuracy=\"366500\"] Failed password for invalid user ops-admin from 203.0.113.77 port 5004 ssh2",
+                "<13>1 2026-10-14T09:09:05.345717+07:00 DevNet sshd - - [timeQuality tzKnown=\"1\" isSynced=\"1\" syncAccuracy=\"366500\"] Failed password for invalid user ops-admin from 203.0.113.77 port 5005 ssh2"
+            ],
+            "first_at": "2026-10-14T02:09:05Z",
+            "incident": false,
+            "key": "brute|203.0.113.77",
+            "last_at": "2026-10-14T02:09:05Z",
+            "severity": "high",
+            "source": "sample-syslog",
+            "target": "DevNet",
+            "title": "Brute force: 8 failed logins from 203.0.113.77"
+        },
+        {
+            "actor": "203.0.113.77",
+            "check": "detect.scan",
+            "count": 10,
+            "detail": "10 distinct destination ports within 30s.",
+            "evidence": [
+                "<13>1 2026-10-14T09:09:05.292676+07:00 DevNet kernel - - [timeQuality tzKnown=\"1\" isSynced=\"1\" syncAccuracy=\"366500\"] [UFW BLOCK] IN=eth0 OUT= SRC=203.0.113.77 DST=192.0.2.10 LEN=40 TOS=0x00 PREC=0x00 TTL=50 ID=1 PROTO=TCP SPT=40000 DPT=21 WINDOW=1024 RES=0x00 SYN URGP=0",
+                "<13>1 2026-10-14T09:09:05.296833+07:00 DevNet kernel - - [timeQuality tzKnown=\"1\" isSynced=\"1\" syncAccuracy=\"366500\"] [UFW BLOCK] IN=eth0 OUT= SRC=203.0.113.77 DST=192.0.2.10 LEN=40 TOS=0x00 PREC=0x00 TTL=50 ID=1 PROTO=TCP SPT=40000 DPT=23 WINDOW=1024 RES=0x00 SYN URGP=0",
+                "<13>1 2026-10-14T09:09:05.300805+07:00 DevNet kernel - - [timeQuality tzKnown=\"1\" isSynced=\"1\" syncAccuracy=\"366500\"] [UFW BLOCK] IN=eth0 OUT= SRC=203.0.113.77 DST=192.0.2.10 LEN=40 TOS=0x00 PREC=0x00 TTL=50 ID=1 PROTO=TCP SPT=40000 DPT=25 WINDOW=1024 RES=0x00 SYN URGP=0",
+                "<13>1 2026-10-14T09:09:05.304541+07:00 DevNet kernel - - [timeQuality tzKnown=\"1\" isSynced=\"1\" syncAccuracy=\"366500\"] [UFW BLOCK] IN=eth0 OUT= SRC=203.0.113.77 DST=192.0.2.10 LEN=40 TOS=0x00 PREC=0x00 TTL=50 ID=1 PROTO=TCP SPT=40000 DPT=80 WINDOW=1024 RES=0x00 SYN URGP=0",
+                "<13>1 2026-10-14T09:09:05.308369+07:00 DevNet kernel - - [timeQuality tzKnown=\"1\" isSynced=\"1\" syncAccuracy=\"366500\"] [UFW BLOCK] IN=eth0 OUT= SRC=203.0.113.77 DST=192.0.2.10 LEN=40 TOS=0x00 PREC=0x00 TTL=50 ID=1 PROTO=TCP SPT=40000 DPT=443 WINDOW=1024 RES=0x00 SYN URGP=0"
+            ],
+            "first_at": "2026-10-14T02:09:05Z",
+            "incident": false,
+            "key": "scan|203.0.113.77",
+            "last_at": "2026-10-14T02:09:05Z",
+            "severity": "medium",
+            "source": "sample-syslog",
+            "target": "DevNet",
+            "title": "Port scan: 203.0.113.77 hit 10 distinct ports"
+        }
+    ]
+}

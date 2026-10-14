@@ -32,6 +32,8 @@ doesn't hand you a black box. Under the hood: bounded-state streaming detectors 
 a per-actor correlation state machine — turning an unbounded log firehose into a
 small, explained, ranked set of incidents without a query language.
 
+See the actual output: [`docs/samples/`](docs/samples/) — this exact scan-then-brute-force-then-success scenario, run for real on a lab instance, findings exported exactly as the API returned them.
+
 ## Ingest sources
 
 syslog (UDP/TCP, RFC3164 & RFC5424), tailed files (rotation-safe), systemd
