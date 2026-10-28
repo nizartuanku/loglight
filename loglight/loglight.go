@@ -22,6 +22,10 @@ import (
 	"github.com/nizartuanku/loglight/core"
 )
 
+// Version is the Loglight release version, shared by Describe and the
+// SIEM export metadata.
+const Version = "0.2.3"
+
 // ModuleID is the module id used across findings and the scheduler.
 const ModuleID = "loglight"
 
@@ -96,7 +100,7 @@ func (c *Collector) Describe() core.ModuleInfo {
 	return core.ModuleInfo{
 		ID:              ModuleID,
 		Name:            "Loglight",
-		Version:         "0.2.2",
+		Version:         Version,
 		TargetKind:      "source",
 		DefaultInterval: 5 * time.Minute,
 		ResolveAfter:    1,

@@ -26,6 +26,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3" // dev driver; release swaps to modernc.org/sqlite
 
+	"github.com/nizartuanku/hexward-core/hfs"
 	"github.com/nizartuanku/loglight/correlate"
 	"github.com/nizartuanku/loglight/detect"
 	"github.com/nizartuanku/loglight/license"
@@ -44,11 +45,11 @@ var issuerPublicKeyB64 = ""
 
 // loglightTierLimits: free = 1 source, Pro = 10, Team = unlimited.
 var loglightTierLimits = map[license.Tier]license.Limits{
-	license.TierFree: {MaxTargets: 1, RetentionDays: 3, Channels: []string{"webhook", "syslog"}},
+	license.TierFree: {MaxTargets: 1, RetentionDays: 3, Channels: []string{"webhook", "syslog", "file", "splunk-hec"}},
 	license.TierPro: {MaxTargets: 10, RetentionDays: 30,
-		Channels: []string{"webhook", "syslog", "email", "slack", "telegram"}, CustomInterval: true, ScanNow: true},
+		Channels: []string{"webhook", "syslog", "file", "splunk-hec", "email", "slack", "telegram"}, CustomInterval: true, ScanNow: true},
 	license.TierTeam: {MaxTargets: 0, RetentionDays: 0,
-		Channels:  []string{"webhook", "syslog", "email", "slack", "telegram", "pagerduty", "teams"},
+		Channels:  []string{"webhook", "syslog", "file", "splunk-hec", "email", "slack", "telegram", "pagerduty", "teams"},
 		MultiUser: true, CustomInterval: true, ScanNow: true},
 }
 
@@ -56,9 +57,7 @@ func main() {
 	listen := flag.String("listen", "127.0.0.1:8427", "dashboard listen address")
 	dbPath := flag.String("db", "loglight.db", "SQLite database path")
 	licFile := flag.String("license", "loglight-license.key", "license key file")
-	webhook := flag.String("webhook", "", "webhook URL for alerts")
-	syslogAddr := flag.String("syslog", "", "syslog collector host:port for findings, e.g. 127.0.0.1:5514 (point this at Loglight to correlate across products)")
-	syslogNet := flag.String("syslog-network", "udp", "syslog transport: udp or tcp")
+	chf := registerChannelFlags(flag.CommandLine)
 	aiURL := flag.String("ai-assist-url", os.Getenv("LOGLIGHT_AI_ASSIST_URL"), "optional hexward-ai sidecar URL for AI-narrated explanations, e.g. http://127.0.0.1:8435 (off when empty)")
 	aiKeyFile := flag.String("ai-assist-key-file", os.Getenv("LOGLIGHT_AI_ASSIST_KEY_FILE"), "API key file for a dedicated AI host or your own OpenAI-compatible endpoint (Pro/Team)")
 	aiLang := flag.String("ai-assist-lang", os.Getenv("LOGLIGHT_AI_ASSIST_LANG"), "language of AI explanations: en (default) or id")
@@ -85,12 +84,10 @@ func main() {
 
 	// Optional webhook dispatcher (Path A notifies through it immediately).
 	var disp *notify.Dispatcher
-	var channels []notify.Channel
-	if *webhook != "" {
-		channels = append(channels, &notify.WebhookChannel{URL: *webhook})
-	}
-	if *syslogAddr != "" {
-		channels = append(channels, &notify.SyslogChannel{Addr: *syslogAddr, Network: *syslogNet})
+	channels, chErr := chf.build(hfs.Meta{Product: "loglight", Version: loglight.Version, Host: hostname()})
+	if chErr != nil {
+		fmt.Fprintln(os.Stderr, "loglight: "+chErr.Error())
+		os.Exit(2)
 	}
 	if len(channels) > 0 {
 		disp = notify.NewDispatcher(notify.Config{}, channels...)
@@ -144,6 +141,8 @@ func main() {
 		}
 	}
 	server := web.NewServer(module.Describe(), st, scheduler, pub, *licFile)
+	server.ExportMeta = hfs.Meta{Product: "loglight", Version: loglight.Version, Host: hostname()}
+	server.ExportEvidence = chf.evidenceMode()
 
 	aiAssist, aiErr := web.NewAIAssist(web.AIConfig{URL: *aiURL, KeyFile: *aiKeyFile, Language: *aiLang, NoThinking: *aiNoThinking})
 	if aiErr != nil {
