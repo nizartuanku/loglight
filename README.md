@@ -148,6 +148,35 @@ syslog receiver reads it.
 
 Available on every tier, free included.
 
+## Receive alerts from Wazuh
+
+Point a Wazuh manager at a Loglight syslog source and Wazuh's alerts join
+Loglight's own detections:
+
+```xml
+<!-- /var/ossec/etc/ossec.conf on the Wazuh manager -->
+<ossec_config>
+  <syslog_output>
+    <server>loglight.example</server>
+    <port>5514</port>
+    <format>json</format>
+    <level>3</level>
+  </syslog_output>
+</ossec_config>
+```
+
+Loglight reads each alert's own fields — source address, user, host, rule
+id and level, authentication outcome — instead of guessing from the text.
+Failed logins Wazuh relays count toward Loglight's brute-force detector, so a
+Decoy trip from the same address completes one critical incident across both
+systems: *brute_force → bait touched*. Alerts for Hexward's own Wazuh rules
+(100500–100599) are recognised and not counted twice. Wazuh sends this over
+UDP; keep Loglight and the manager on a network you trust.
+
+Loglight also accepts findings from the other Hexward tools in either syslog
+format: the original key=value lines and Hexward Finding Schema JSON
+(`-syslog-format json`).
+
 ## Send findings to your SIEM (Wazuh, Splunk, Elastic)
 
 Every finding Loglight opens or resolves can leave as one

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.4 — 2026-10-28
+
+- **Wazuh alerts in, as first-class events.** A Wazuh manager's `syslog_output` (`<format>json</format>`) can now point at a Loglight syslog source. Loglight reads the alert's own fields (source address, user, originating host, rule id and level, authentication outcome) instead of guessing from the text, so Wazuh-relayed failed logins feed the brute-force detector and a Decoy trip from the same address raises one critical incident across both systems. Wazuh's aggregate brute-force rules are not counted as extra failures, and Hexward's own Wazuh rules (100500–100599) are ignored so nothing is counted twice. Tested end to end with Wazuh 4.14.9.
+- **Hexward Finding Schema JSON accepted.** Findings sent with `-syslog-format json` from any Hexward tool are understood exactly like the original key=value lines.
+
 ## 0.2.3 — 2026-10-28
 
 - **Send findings to your SIEM, in every edition.** Findings now leave Loglight as [Hexward Finding Schema](https://github.com/nizartuanku/hexward-core/blob/main/SCHEMA.md) events (`hexward.finding/1`), the shape every Hexward tool shares. New outputs: an NDJSON file (`-export-file`) for a Wazuh agent, Splunk Universal Forwarder or Elastic Agent; Splunk HTTP Event Collector (`-hec-url`, `-hec-token-file`); syslog as HFS JSON or CEF (`-syslog-format json|cef`), RFC 5424 by default or 3164, over udp, tcp or tls with verified certificates; and webhook v2 (`-webhook-format v2`). Ready-made content: [hexward-wazuh](https://github.com/nizartuanku/hexward-wazuh) and [TA-hexward](https://github.com/nizartuanku/TA-hexward).

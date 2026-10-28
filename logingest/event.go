@@ -53,6 +53,12 @@ type Event struct {
 	BytesOut int64       // egress bytes, if the line reports them (0 = none)
 	Action   string      // "new_admin" | "accept" | "deny" | "" — coarse tag for detectors
 
+	// Vendor fields, set when the line is a structured alert from another
+	// system Loglight understands (see vendor.go): "wazuh" or "hexward".
+	Vendor      string
+	VendorRule  string // Wazuh rule id, or the Hexward check
+	VendorLevel int    // Wazuh rule level (0-16); 0 for Hexward findings
+
 	Raw    string // the original line (always kept)
 	Parsed bool   // false → parser did not understand structure (counts toward parse-rate)
 }

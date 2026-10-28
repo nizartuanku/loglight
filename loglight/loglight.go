@@ -24,7 +24,7 @@ import (
 
 // Version is the Loglight release version, shared by Describe and the
 // SIEM export metadata.
-const Version = "0.2.3"
+const Version = "0.2.4"
 
 // ModuleID is the module id used across findings and the scheduler.
 const ModuleID = "loglight"

@@ -14,6 +14,11 @@ import (
 // firewall/flow lines carrying byte counts. It is best-effort: anything it can't
 // classify leaves Auth=None and the line still flows as raw context.
 func extractFields(e *Event) {
+	// Structured alerts from Wazuh and Hexward Finding Schema events carry
+	// their own fields; reading them beats guessing from the text.
+	if fromWazuh(e) || fromHFS(e) {
+		return
+	}
 	msg := e.Message
 	if msg == "" {
 		msg = e.Raw
